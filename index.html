@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GOLDシグナル">
+    <title>GOLD シグナル</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🥇</text></svg>">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+    <div class="app">
+        <!-- ヘッダー -->
+        <header class="header">
+            <div class="header-left">
+                <span class="logo">🥇</span>
+                <span class="title">GOLD</span>
+            </div>
+            <div class="header-right">
+                <div class="price-info">
+                    <span id="current-price" class="price">---</span>
+                    <span id="price-change" class="change">--</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- タブナビゲーション -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" data-tab="signal">シグナル</button>
+            <button class="tab-btn" data-tab="chart">チャート</button>
+            <button class="tab-btn" data-tab="history">履歴</button>
+            <button class="tab-btn" data-tab="settings">設定</button>
+        </nav>
+
+        <!-- シグナルタブ -->
+        <section id="signal-tab" class="tab-content active">
+            <div class="signal-card">
+                <div id="signal-display" class="signal neutral">
+                    <span class="signal-icon">⏳</span>
+                    <span class="signal-text">分析中...</span>
+                </div>
+                <div id="signal-time" class="signal-time"></div>
+            </div>
+
+            <div class="trade-card">
+                <h3>トレード設定</h3>
+                <div class="trade-grid">
+                    <div class="trade-item">
+                        <span class="label">エントリー</span>
+                        <span id="entry-price" class="value">---</span>
+                    </div>
+                    <div class="trade-item sl">
+                        <span class="label">ストップロス</span>
+                        <span id="sl-price" class="value">---</span>
+                    </div>
+                    <div class="trade-item tp">
+                        <span class="label">テイクプロフィット</span>
+                        <span id="tp-price" class="value">---</span>
+                    </div>
+                    <div class="trade-item rr">
+                        <span class="label">リスクリワード</span>
+                        <span id="rr-ratio" class="value">1:2</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="indicators-card">
+                <h3>インジケーター</h3>
+                <div class="indicator-list">
+                    <div class="indicator-item">
+                        <span class="name">RSI (14)</span>
+                        <span id="rsi-value" class="value">--</span>
+                        <span id="rsi-signal" class="badge neutral">--</span>
+                    </div>
+                    <div class="indicator-item">
+                        <span class="name">MACD</span>
+                        <span id="macd-value" class="value">--</span>
+                        <span id="macd-signal" class="badge neutral">--</span>
+                    </div>
+                    <div class="indicator-item">
+                        <span class="name">EMA</span>
+                        <span id="ema-value" class="value"></span>
+                        <span id="ema-signal" class="badge neutral">--</span>
+                    </div>
+                    <div class="indicator-item">
+                        <span class="name">ATR</span>
+                        <span id="atr-value" class="value">--</span>
+                        <span id="atr-signal" class="badge neutral">--</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- チャートタブ -->
+        <section id="chart-tab" class="tab-content">
+            <div class="timeframe-selector">
+                <button class="tf-btn active" data-tf="15min">15分</button>
+                <button class="tf-btn" data-tf="1h">1時間</button>
+            </div>
+            <div id="chart-container"></div>
+            <div class="chart-legend">
+                <span class="legend-item"><span class="dot blue"></span>EMA20</span>
+                <span class="legend-item"><span class="dot yellow"></span>EMA50</span>
+            </div>
+        </section>
+
+        <!-- 履歴タブ -->
+        <section id="history-tab" class="tab-content">
+            <div class="history-header">
+                <h3>シグナル履歴</h3>
+                <button id="clear-history" class="btn-small">クリア</button>
+            </div>
+            <div id="history-list" class="history-list">
+                <p class="empty-message">まだ履歴がありません</p>
+            </div>
+        </section>
+
+        <!-- 設定タブ -->
+        <section id="settings-tab" class="tab-content">
+            <div class="settings-group">
+                <h3>🔔 通知設定</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">ブラウザ通知</span>
+                        <span class="setting-desc">シグナル発生時に通知</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="browser-notify" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">LINE通知</span>
+                        <span class="setting-desc">LINEにシグナルを送信</span>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="line-notify">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div id="line-token-section" class="setting-subsection hidden">
+                    <label class="input-label">LINE Notifyトークン</label>
+                    <input type="password" id="line-token" placeholder="トークンを入力" class="input-field">
+                    <button id="save-line-token" class="btn-primary">保存</button>
+                    <button id="test-line" class="btn-secondary">テスト送信</button>
+                    <a href="https://notify-bot.line.me/" target="_blank" class="help-link">トークンの取得方法 →</a>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <h3>📊 データ設定</h3>
+                
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <span class="setting-label">API Key</span>
+                        <span class="setting-desc">Twelve Data API</span>
+                    </div>
+                </div>
+                <input type="password" id="api-key" placeholder="APIキーを入力" class="input-field">
+                <button id="save-api-key" class="btn-primary">保存</button>
+                <a href="https://twelvedata.com/" target="_blank" class="help-link">APIキーの取得 →</a>
+            </div>
+
+            <div class="settings-group">
+                <h3>ℹ️ このアプリについて</h3>
+                <p class="about-text">
+                    ゴールド（XAU/USD）のテクニカル分析に基づく売買シグナルを表示します。
+                    EMA、RSI、MACDを組み合わせてシグナルを生成し、ATRに基づいたSL/TPを計算します。
+                </p>
+                <p class="disclaimer">
+                    ⚠️ このアプリは参考情報です。投資判断は自己責任で行ってください。
+                </p>
+            </div>
+        </section>
+
+        <!-- ステータスバー -->
+        <footer class="status-bar">
+            <span id="api-status" class="status-dot offline"></span>
+            <span id="status-text">接続中...</span>
+            <span id="last-update" class="last-update"></span>
+        </footer>
+    </div>
+
+    <script src="indicators.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
