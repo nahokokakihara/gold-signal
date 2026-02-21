@@ -139,21 +139,21 @@
 
                 <div class="setting-item">
                     <div class="setting-info">
-                        <span class="setting-label">LINE通知</span>
-                        <span class="setting-desc">LINEにシグナルを送信</span>
+                        <span class="setting-label">Discord通知</span>
+                        <span class="setting-desc">Discordにシグナルを送信</span>
                     </div>
                     <label class="toggle">
-                        <input type="checkbox" id="line-notify">
+                        <input type="checkbox" id="discord-notify">
                         <span class="slider"></span>
                     </label>
                 </div>
 
-                <div id="line-token-section" class="setting-subsection hidden">
-                    <label class="input-label">LINE Notifyトークン</label>
-                    <input type="password" id="line-token" placeholder="トークンを入力" class="input-field">
-                    <button id="save-line-token" class="btn-primary">保存</button>
-                    <button id="test-line" class="btn-secondary">テスト送信</button>
-                    <a href="https://notify-bot.line.me/" target="_blank" class="help-link">トークンの取得方法 →</a>
+                <div id="discord-webhook-section" class="setting-subsection hidden">
+                    <label class="input-label">Discord Webhook URL</label>
+                    <input type="password" id="discord-webhook" placeholder="Webhook URLを入力" class="input-field">
+                    <button id="save-discord-webhook" class="btn-primary">保存</button>
+                    <button id="test-discord" class="btn-secondary">テスト送信</button>
+                    <p class="help-text">サーバー設定 → 連携サービス → ウェブフック で取得</p>
                 </div>
             </div>
 

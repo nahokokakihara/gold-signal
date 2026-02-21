@@ -1,9 +1,9 @@
 class GoldSignalApp {
     constructor() {
         this.apiKey = localStorage.getItem('twelvedata_api_key') || '';
-        this.lineToken = localStorage.getItem('line_notify_token') || '';
+        this.discordWebhook = localStorage.getItem('discord_webhook') || '';
         this.browserNotify = localStorage.getItem('browser_notify') !== 'false';
-        this.lineNotifyEnabled = localStorage.getItem('line_notify_enabled') === 'true';
+        this.discordNotifyEnabled = localStorage.getItem('discord_notify_enabled') === 'true';
         this.timeframe = '15min';
         this.chart = null;
         this.candlestickSeries = null;
@@ -73,23 +73,23 @@ class GoldSignalApp {
             }
         });
 
-        document.getElementById('line-notify').addEventListener('change', (e) => {
-            this.lineNotifyEnabled = e.target.checked;
-            localStorage.setItem('line_notify_enabled', this.lineNotifyEnabled);
-            document.getElementById('line-token-section').classList.toggle('hidden', !this.lineNotifyEnabled);
+        document.getElementById('discord-notify').addEventListener('change', (e) => {
+            this.discordNotifyEnabled = e.target.checked;
+            localStorage.setItem('discord_notify_enabled', this.discordNotifyEnabled);
+            document.getElementById('discord-webhook-section').classList.toggle('hidden', !this.discordNotifyEnabled);
         });
 
-        document.getElementById('save-line-token').addEventListener('click', () => {
-            const token = document.getElementById('line-token').value.trim();
-            if (token) {
-                localStorage.setItem('line_notify_token', token);
-                this.lineToken = token;
-                alert('LINE Notifyトークンを保存しました');
+        document.getElementById('save-discord-webhook').addEventListener('click', () => {
+            const webhook = document.getElementById('discord-webhook').value.trim();
+            if (webhook) {
+                localStorage.setItem('discord_webhook', webhook);
+                this.discordWebhook = webhook;
+                alert('Discord Webhookを保存しました');
             }
         });
 
-        document.getElementById('test-line').addEventListener('click', () => {
-            this.sendLineNotify('🥇 テスト通知\nGOLDシグナルアプリからのテストメッセージです。');
+        document.getElementById('test-discord').addEventListener('click', () => {
+            this.sendDiscordNotify('🥇 **テスト通知**\nGOLDシグナルアプリからのテストメッセージです。');
         });
 
         document.getElementById('save-api-key').addEventListener('click', () => {
@@ -113,14 +113,14 @@ class GoldSignalApp {
 
     loadSettings() {
         document.getElementById('browser-notify').checked = this.browserNotify;
-        document.getElementById('line-notify').checked = this.lineNotifyEnabled;
+        document.getElementById('discord-notify').checked = this.discordNotifyEnabled;
         
-        if (this.lineNotifyEnabled) {
-            document.getElementById('line-token-section').classList.remove('hidden');
+        if (this.discordNotifyEnabled) {
+            document.getElementById('discord-webhook-section').classList.remove('hidden');
         }
         
-        if (this.lineToken) {
-            document.getElementById('line-token').value = '••••••••••••';
+        if (this.discordWebhook) {
+            document.getElementById('discord-webhook').value = '••••••••••••';
         }
         
         if (this.apiKey) {
@@ -378,9 +378,8 @@ class GoldSignalApp {
             this.sendBrowserNotification(signal);
         }
         
-        if (this.lineNotifyEnabled && this.lineToken) {
-            const message = this.formatLineMessage(signal, price, sltp);
-            this.sendLineNotify(message);
+        if (this.discordNotifyEnabled && this.discordWebhook) {
+            this.sendDiscordSignal(signal, price, sltp);
         }
     }
 
@@ -523,57 +522,84 @@ class GoldSignalApp {
         }
     }
 
-    formatLineMessage(signal, price, sltp) {
+    sendDiscordSignal(signal, price, sltp) {
         const emoji = signal.overall === 'buy' ? '📈' : '📉';
         const direction = signal.overall === 'buy' ? '買い' : '売り';
+        const color = signal.overall === 'buy' ? 0x3fb950 : 0xf85149;
         const priceJpy = Math.round(price * this.usdJpyRate).toLocaleString('ja-JP');
         
-        let message = `\n🥇 GOLD ${emoji} ${direction}シグナル\n`;
-        message += `━━━━━━━━━━━━━━\n`;
-        message += `💰 価格: $${price.toFixed(2)} (¥${priceJpy})\n`;
-        
+        const embed = {
+            title: `🥇 GOLD ${emoji} ${direction}シグナル`,
+            color: color,
+            fields: [
+                {
+                    name: '💰 価格',
+                    value: `$${price.toFixed(2)} (¥${priceJpy})`,
+                    inline: true
+                },
+                {
+                    name: '⏰ 時間足',
+                    value: this.timeframe,
+                    inline: true
+                }
+            ],
+            timestamp: new Date().toISOString()
+        };
+
         if (sltp) {
             const slJpy = Math.round(sltp.sl * this.usdJpyRate).toLocaleString('ja-JP');
             const tpJpy = Math.round(sltp.tp * this.usdJpyRate).toLocaleString('ja-JP');
-            message += `🛑 SL: $${sltp.sl.toFixed(2)} (¥${slJpy})\n`;
-            message += `🎯 TP: $${sltp.tp.toFixed(2)} (¥${tpJpy})\n`;
-            message += `📊 RR比: 1:2\n`;
+            
+            embed.fields.push(
+                {
+                    name: '🛑 ストップロス',
+                    value: `$${sltp.sl.toFixed(2)} (¥${slJpy})`,
+                    inline: true
+                },
+                {
+                    name: '🎯 テイクプロフィット',
+                    value: `$${sltp.tp.toFixed(2)} (¥${tpJpy})`,
+                    inline: true
+                },
+                {
+                    name: '📊 リスクリワード',
+                    value: '1:2',
+                    inline: true
+                }
+            );
         }
-        
-        message += `⏰ ${this.timeframe}足\n`;
-        message += `💱 USD/JPY: ${this.usdJpyRate.toFixed(2)}\n`;
-        message += `━━━━━━━━━━━━━━`;
-        
-        return message;
+
+        this.sendDiscordNotify(null, embed);
     }
 
-    async sendLineNotify(message) {
-        if (!this.lineToken) {
-            alert('LINE Notifyトークンが設定されていません');
+    async sendDiscordNotify(content, embed = null) {
+        if (!this.discordWebhook) {
+            alert('Discord Webhookが設定されていません');
             return;
         }
 
         try {
-            const response = await fetch('https://notify-api.line.me/api/notify', {
+            const body = {};
+            if (content) body.content = content;
+            if (embed) body.embeds = [embed];
+
+            const response = await fetch(this.discordWebhook, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.lineToken}`,
-                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Content-Type': 'application/json',
                 },
-                body: `message=${encodeURIComponent(message)}`
+                body: JSON.stringify(body)
             });
 
-            if (response.ok) {
-                console.log('LINE notification sent');
+            if (response.ok || response.status === 204) {
+                console.log('Discord notification sent');
             } else {
                 const errorText = await response.text();
-                console.error('LINE notify error:', errorText);
-                if (response.status === 401) {
-                    alert('LINE Notifyトークンが無効です。再設定してください。');
-                }
+                console.error('Discord notify error:', errorText);
+                alert('Discord通知の送信に失敗しました');
             }
         } catch (error) {
-            console.error('LINE notify error:', error);
+            console.error('Discord notify error:', error);
         }
     }
 }

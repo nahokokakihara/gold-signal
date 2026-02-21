@@ -595,6 +595,12 @@ body {
     text-decoration: none;
 }
 
+.help-text {
+    margin-top: 12px;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
 .about-text {
     font-size: 0.9rem;
     color: var(--text-secondary);
