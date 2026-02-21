@@ -13,6 +13,7 @@ class GoldSignalApp {
         this.lastSignal = null;
         this.history = JSON.parse(localStorage.getItem('signal_history') || '[]');
         this.updateInterval = null;
+        this.usdJpyRate = 150;
         
         this.init();
     }
@@ -205,11 +206,13 @@ class GoldSignalApp {
         this.updateStatus('データ取得中...', false);
 
         try {
-            const response = await fetch(
-                `https://api.twelvedata.com/time_series?symbol=XAU/USD&interval=${this.timeframe}&outputsize=100&apikey=${this.apiKey}`
-            );
+            const [goldResponse, usdJpyResponse] = await Promise.all([
+                fetch(`https://api.twelvedata.com/time_series?symbol=XAU/USD&interval=${this.timeframe}&outputsize=100&apikey=${this.apiKey}`),
+                fetch(`https://api.twelvedata.com/price?symbol=USD/JPY&apikey=${this.apiKey}`)
+            ]);
             
-            const data = await response.json();
+            const data = await goldResponse.json();
+            const usdJpyData = await usdJpyResponse.json();
             
             if (data.status === 'error') {
                 throw new Error(data.message || 'API error');
@@ -217,6 +220,10 @@ class GoldSignalApp {
 
             if (!data.values || data.values.length === 0) {
                 throw new Error('No data received');
+            }
+
+            if (usdJpyData.price) {
+                this.usdJpyRate = parseFloat(usdJpyData.price);
             }
 
             this.priceData = data.values.reverse().map(item => ({
@@ -258,8 +265,14 @@ class GoldSignalApp {
         const currentPrice = lastCandle.close;
         const change = currentPrice - prevCandle.close;
         const changePercent = (change / prevCandle.close) * 100;
+        const priceInJpy = currentPrice * this.usdJpyRate;
 
         document.getElementById('current-price').textContent = `$${currentPrice.toFixed(2)}`;
+        
+        const jpyPriceEl = document.getElementById('current-price-jpy');
+        if (jpyPriceEl) {
+            jpyPriceEl.textContent = `¥${priceInJpy.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}`;
+        }
         
         const changeEl = document.getElementById('price-change');
         changeEl.textContent = `${change >= 0 ? '+' : ''}${changePercent.toFixed(2)}%`;
@@ -337,9 +350,13 @@ class GoldSignalApp {
         const sltp = Indicators.calculateSLTP(currentPrice, signal.atr, isBuy);
 
         if (sltp && signal.overall !== 'neutral') {
-            document.getElementById('entry-price').textContent = `$${sltp.entry.toFixed(2)}`;
-            document.getElementById('sl-price').textContent = `$${sltp.sl.toFixed(2)}`;
-            document.getElementById('tp-price').textContent = `$${sltp.tp.toFixed(2)}`;
+            const entryJpy = sltp.entry * this.usdJpyRate;
+            const slJpy = sltp.sl * this.usdJpyRate;
+            const tpJpy = sltp.tp * this.usdJpyRate;
+            
+            document.getElementById('entry-price').innerHTML = `$${sltp.entry.toFixed(2)}<span class="jpy-sub">¥${entryJpy.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}</span>`;
+            document.getElementById('sl-price').innerHTML = `$${sltp.sl.toFixed(2)}<span class="jpy-sub">¥${slJpy.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}</span>`;
+            document.getElementById('tp-price').innerHTML = `$${sltp.tp.toFixed(2)}<span class="jpy-sub">¥${tpJpy.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}</span>`;
             document.getElementById('rr-ratio').textContent = '1:2';
         } else {
             document.getElementById('entry-price').textContent = '---';
@@ -509,18 +526,22 @@ class GoldSignalApp {
     formatLineMessage(signal, price, sltp) {
         const emoji = signal.overall === 'buy' ? '📈' : '📉';
         const direction = signal.overall === 'buy' ? '買い' : '売り';
+        const priceJpy = Math.round(price * this.usdJpyRate).toLocaleString('ja-JP');
         
         let message = `\n🥇 GOLD ${emoji} ${direction}シグナル\n`;
         message += `━━━━━━━━━━━━━━\n`;
-        message += `💰 価格: $${price.toFixed(2)}\n`;
+        message += `💰 価格: $${price.toFixed(2)} (¥${priceJpy})\n`;
         
         if (sltp) {
-            message += `🛑 SL: $${sltp.sl.toFixed(2)}\n`;
-            message += `🎯 TP: $${sltp.tp.toFixed(2)}\n`;
+            const slJpy = Math.round(sltp.sl * this.usdJpyRate).toLocaleString('ja-JP');
+            const tpJpy = Math.round(sltp.tp * this.usdJpyRate).toLocaleString('ja-JP');
+            message += `🛑 SL: $${sltp.sl.toFixed(2)} (¥${slJpy})\n`;
+            message += `🎯 TP: $${sltp.tp.toFixed(2)} (¥${tpJpy})\n`;
             message += `📊 RR比: 1:2\n`;
         }
         
         message += `⏰ ${this.timeframe}足\n`;
+        message += `💱 USD/JPY: ${this.usdJpyRate.toFixed(2)}\n`;
         message += `━━━━━━━━━━━━━━`;
         
         return message;

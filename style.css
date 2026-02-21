@@ -80,6 +80,21 @@ body {
     font-family: 'SF Mono', Monaco, monospace;
 }
 
+.price-jpy {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--accent-gold);
+    font-family: 'SF Mono', Monaco, monospace;
+}
+
+.jpy-sub {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--accent-gold);
+    font-weight: 500;
+    margin-top: 2px;
+}
+
 .change {
     font-size: 0.85rem;
     padding: 2px 6px;
