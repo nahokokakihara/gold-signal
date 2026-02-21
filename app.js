@@ -4,6 +4,7 @@ class GoldSignalApp {
         this.discordWebhook = localStorage.getItem('discord_webhook') || '';
         this.browserNotify = localStorage.getItem('browser_notify') !== 'false';
         this.discordNotifyEnabled = localStorage.getItem('discord_notify_enabled') === 'true';
+        this.priceMultiplier = parseFloat(localStorage.getItem('price_multiplier')) || 1.0;
         this.timeframe = '15min';
         this.chart = null;
         this.candlestickSeries = null;
@@ -102,6 +103,31 @@ class GoldSignalApp {
             }
         });
 
+        document.getElementById('save-multiplier').addEventListener('click', () => {
+            const multiplier = parseFloat(document.getElementById('price-multiplier').value);
+            if (multiplier && multiplier > 0) {
+                localStorage.setItem('price_multiplier', multiplier);
+                this.priceMultiplier = multiplier;
+                this.updateUI();
+                alert(`倍率を ${multiplier} に設定しました`);
+            } else {
+                alert('正しい倍率を入力してください');
+            }
+        });
+
+        document.getElementById('calc-multiplier').addEventListener('click', () => {
+            const mt5Price = parseFloat(document.getElementById('mt5-price-input').value);
+            const appPrice = this.priceData.length > 0 ? this.priceData[this.priceData.length - 1].close : 0;
+            
+            if (mt5Price && appPrice) {
+                const multiplier = (mt5Price / appPrice).toFixed(4);
+                document.getElementById('price-multiplier').value = multiplier;
+                alert(`倍率を計算しました: ${multiplier}\n「保存」を押して適用してください`);
+            } else {
+                alert('MT5の価格を入力してください');
+            }
+        });
+
         document.getElementById('clear-history').addEventListener('click', () => {
             if (confirm('履歴をクリアしますか？')) {
                 this.history = [];
@@ -125,6 +151,10 @@ class GoldSignalApp {
         
         if (this.apiKey) {
             document.getElementById('api-key').value = '••••••••••••';
+        }
+
+        if (this.priceMultiplier !== 1.0) {
+            document.getElementById('price-multiplier').value = this.priceMultiplier;
         }
     }
 
@@ -262,10 +292,10 @@ class GoldSignalApp {
         const lastCandle = this.priceData[this.priceData.length - 1];
         const prevCandle = this.priceData[this.priceData.length - 2];
 
-        const currentPrice = lastCandle.close;
-        const change = currentPrice - prevCandle.close;
-        const changePercent = (change / prevCandle.close) * 100;
-        const priceInJpy = currentPrice * this.usdJpyRate;
+        const currentPrice = lastCandle.close * this.priceMultiplier;
+        const change = (lastCandle.close - prevCandle.close) * this.priceMultiplier;
+        const changePercent = ((lastCandle.close - prevCandle.close) / prevCandle.close) * 100;
+        const priceInJpy = lastCandle.close * this.usdJpyRate;
 
         document.getElementById('current-price').textContent = `$${currentPrice.toFixed(2)}`;
         
@@ -350,13 +380,15 @@ class GoldSignalApp {
         const sltp = Indicators.calculateSLTP(currentPrice, signal.atr, isBuy);
 
         if (sltp && signal.overall !== 'neutral') {
-            const entryJpy = sltp.entry * this.usdJpyRate;
-            const slJpy = sltp.sl * this.usdJpyRate;
-            const tpJpy = sltp.tp * this.usdJpyRate;
+            const entryPrice = sltp.entry * this.priceMultiplier;
+            const slPrice = sltp.sl * this.priceMultiplier;
+            const tpPrice = sltp.tp * this.priceMultiplier;
+            const slDiff = Math.abs(sltp.entry - sltp.sl) * this.priceMultiplier;
+            const tpDiff = Math.abs(sltp.tp - sltp.entry) * this.priceMultiplier;
             
-            document.getElementById('entry-price').innerHTML = `$${sltp.entry.toFixed(2)}<span class="jpy-sub">¥${entryJpy.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}</span>`;
-            document.getElementById('sl-price').innerHTML = `$${sltp.sl.toFixed(2)}<span class="jpy-sub">¥${slJpy.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}</span>`;
-            document.getElementById('tp-price').innerHTML = `$${sltp.tp.toFixed(2)}<span class="jpy-sub">¥${tpJpy.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}</span>`;
+            document.getElementById('entry-price').innerHTML = `$${entryPrice.toFixed(2)}`;
+            document.getElementById('sl-price').innerHTML = `$${slPrice.toFixed(2)}<span class="diff-sub">(-$${slDiff.toFixed(2)})</span>`;
+            document.getElementById('tp-price').innerHTML = `$${tpPrice.toFixed(2)}<span class="diff-sub">(+$${tpDiff.toFixed(2)})</span>`;
             document.getElementById('rr-ratio').textContent = '1:2';
         } else {
             document.getElementById('entry-price').textContent = '---';
@@ -526,7 +558,7 @@ class GoldSignalApp {
         const emoji = signal.overall === 'buy' ? '📈' : '📉';
         const direction = signal.overall === 'buy' ? '買い' : '売り';
         const color = signal.overall === 'buy' ? 0x3fb950 : 0xf85149;
-        const priceJpy = Math.round(price * this.usdJpyRate).toLocaleString('ja-JP');
+        const displayPrice = price * this.priceMultiplier;
         
         const embed = {
             title: `🥇 GOLD ${emoji} ${direction}シグナル`,
@@ -534,7 +566,7 @@ class GoldSignalApp {
             fields: [
                 {
                     name: '💰 価格',
-                    value: `$${price.toFixed(2)} (¥${priceJpy})`,
+                    value: `$${displayPrice.toFixed(2)}`,
                     inline: true
                 },
                 {
@@ -547,18 +579,20 @@ class GoldSignalApp {
         };
 
         if (sltp) {
-            const slJpy = Math.round(sltp.sl * this.usdJpyRate).toLocaleString('ja-JP');
-            const tpJpy = Math.round(sltp.tp * this.usdJpyRate).toLocaleString('ja-JP');
+            const slPrice = sltp.sl * this.priceMultiplier;
+            const tpPrice = sltp.tp * this.priceMultiplier;
+            const slDiff = Math.abs(sltp.entry - sltp.sl) * this.priceMultiplier;
+            const tpDiff = Math.abs(sltp.tp - sltp.entry) * this.priceMultiplier;
             
             embed.fields.push(
                 {
                     name: '🛑 ストップロス',
-                    value: `$${sltp.sl.toFixed(2)} (¥${slJpy})`,
+                    value: `$${slPrice.toFixed(2)} (-$${slDiff.toFixed(2)})`,
                     inline: true
                 },
                 {
                     name: '🎯 テイクプロフィット',
-                    value: `$${sltp.tp.toFixed(2)} (¥${tpJpy})`,
+                    value: `$${tpPrice.toFixed(2)} (+$${tpDiff.toFixed(2)})`,
                     inline: true
                 },
                 {
